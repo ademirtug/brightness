@@ -19,6 +19,7 @@
 #pragma comment(lib, "comctl32.lib")
 #pragma comment(lib, "advapi32.lib")
 #include "resource.h"
+#include "registry.h"
 
 using namespace std;
 
@@ -106,103 +107,6 @@ std::string GetLastErrorAsString()
 
     return message;
 }
-BOOL CreateRegistryKey(HKEY hKeyParent, const char* subkey)
-{
-    DWORD dwDisposition; //It verify new key is created or open existing key
-    HKEY  hKey;
-    DWORD Ret;
-    Ret =
-        RegCreateKeyExA(
-            hKeyParent,
-            subkey,
-            0,
-            NULL,
-            REG_OPTION_NON_VOLATILE,
-            KEY_ALL_ACCESS,
-            NULL,
-            &hKey,
-            &dwDisposition);
-    if (Ret != ERROR_SUCCESS)
-    {
-        printf("Error opening or creating key.\n");
-        return FALSE;
-    }
-    RegCloseKey(hKey);
-    return TRUE;
-}
-BOOL WriteInRegistry(HKEY hKeyParent, const char* subkey, const char* valueName, DWORD data)
-{
-    DWORD Ret; //use to check status
-    HKEY hKey; //key
-    //Open the key
-    Ret = RegOpenKeyExA(
-        hKeyParent,
-        subkey,
-        0,
-        KEY_WRITE,
-        &hKey
-    );
-    if (Ret == ERROR_SUCCESS)
-    {
-        //Set the value in key
-        if (ERROR_SUCCESS !=
-            RegSetValueExA(
-                hKey,
-                valueName,
-                0,
-                REG_DWORD,
-                reinterpret_cast<BYTE*>(&data),
-                sizeof(data)))
-        {
-            RegCloseKey(hKey);
-            return FALSE;
-        }
-        //close the key
-        RegCloseKey(hKey);
-        return TRUE;
-    }
-    return FALSE;
-}
-BOOL readDwordValueRegistry(HKEY hKeyParent, const char* subkey, const char* valueName, DWORD* readData)
-{
-    HKEY hKey;
-    DWORD Ret;
-    //Check if the registry exists
-    Ret = RegOpenKeyExA(
-        hKeyParent,
-        subkey,
-        0,
-        KEY_READ,
-        &hKey
-    );
-    if (Ret == ERROR_SUCCESS)
-    {
-        DWORD data;
-        DWORD len = sizeof(DWORD);//size of data
-        Ret = RegQueryValueExA(
-            hKey,
-            valueName,
-            NULL,
-            NULL,
-            (LPBYTE)(&data),
-            &len
-        );
-        if (Ret == ERROR_SUCCESS)
-        {
-            RegCloseKey(hKey);
-            (*readData) = data;
-            return TRUE;
-        }
-        RegCloseKey(hKey);
-        return TRUE;
-    }
-    else
-    {
-        return FALSE;
-    }
-}
-
-//bool create_regkey(HKEY hKeyParent, string )
 
 int altg_active() {
     return (GetKeyState(VK_RMENU));
@@ -264,10 +168,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     hKeyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, KeyboardProc, hInstance, 0);
     ZeroMemory(&niData, sizeof(NOTIFYICONDATA));
 
-    // get Shell32 version number and set the size of the structure
-    //		note:	the MSDN documentation about this is a little
-    //				dubious and I'm not at all sure if the method
-    //				bellow is correct
     ULONGLONG ullVersion = GetDllVersion(_T("Shell32.dll"));
     if (ullVersion >= MAKEDLLVERULL(5, 0, 0, 0))
         niData.cbSize = sizeof(NOTIFYICONDATA);
@@ -385,22 +285,22 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 GetCursorPos(&pt);
                 RECT r;
                 GetWindowRect(hWnd, &r);
-                SetWindowPos(hWnd, HWND_TOP, pt.x - (r.right - r.left), pt.y - (r.bottom - r.top), -1, -1, SWP_NOSIZE);
+                SetWindowPos(hWnd, HWND_TOPMOST, pt.x - (r.right - r.left), pt.y - (r.bottom - r.top)-20, -1, -1, SWP_NOSIZE);
                 HWND sliderConLo = GetDlgItem(hWnd, IDC_SLIDER1);
                 SendMessage(sliderConLo, TBM_SETRANGE, (WPARAM)1, (LPARAM)MAKELONG(0, 100));
                 SendMessage(sliderConLo, TBM_SETPOS, TRUE, 100 - get_brightness());
                 DWORD isauto = 0;
-                readDwordValueRegistry(HKEY_CURRENT_USER, "AutoBrightness", "isauto", &isauto);
+
+                registry_key rk(HKEY_CURRENT_USER, "AutoBrightness", "isauto");
                 
                 HWND chk = GetDlgItem(hWnd, IDC_CHECK1);
-                if (isauto)
+                if (rk.readdword())
                     SendMessage(chk, BM_SETCHECK, BST_CHECKED, 0);
                 else
                     SendMessage(chk, BM_SETCHECK, BST_UNCHECKED, 0);
                 
                 ShowWindow(hWnd, SW_RESTORE);
-                
-
+                SetFocus(sliderConLo);
             }
                 break;
             case WM_RBUTTONDOWN:
@@ -436,14 +336,11 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             switch (HIWORD(wParam))
             {
             case BN_CLICKED:
+                registry_key rk(HKEY_CURRENT_USER, "AutoBrightness", "isauto");
                 if (SendDlgItemMessage(hWnd, IDC_CHECK1, BM_GETCHECK, 0, 0))
-                {
-                    WriteInRegistry(HKEY_CURRENT_USER, "AutoBrightness", "isauto", 1);
-                }
+                    rk.write(1);
                 else
-                {
-                    WriteInRegistry(HKEY_CURRENT_USER, "AutoBrightness", "isauto", 0);
-                }
+                    rk.write(0);
                 break;
             }
         }
@@ -489,27 +386,23 @@ int CALLBACK WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
     hMonitor = MonitorFromPoint(pt, 0);
 
     BOOL bSuccess = GetNumberOfPhysicalMonitorsFromHMONITOR(hMonitor, &cPhysicalMonitors);
-    pPhysicalMonitors = (LPPHYSICAL_MONITOR)malloc(cPhysicalMonitors * sizeof(PHYSICAL_MONITOR));
-    bSuccess = GetPhysicalMonitorsFromHMONITOR(hMonitor, cPhysicalMonitors, pPhysicalMonitors);
-    pmh = pPhysicalMonitors[0].hPhysicalMonitor;
-    
-
-    DWORD isauto = 0;
-    if (!readDwordValueRegistry(HKEY_CURRENT_USER, "AutoBrightness", "isauto", &isauto))
+    if (bSuccess)
     {
-        CreateRegistryKey(HKEY_CURRENT_USER, "AutoBrightness");
-        WriteInRegistry(HKEY_CURRENT_USER, "AutoBrightness", "isauto", 0);
+        pPhysicalMonitors = (LPPHYSICAL_MONITOR)malloc(cPhysicalMonitors * sizeof(PHYSICAL_MONITOR));
+        bSuccess = GetPhysicalMonitorsFromHMONITOR(hMonitor, cPhysicalMonitors, pPhysicalMonitors);
+        pmh = pPhysicalMonitors[0].hPhysicalMonitor;
     }
-    
-    if(isauto)
-        workerthread.reset(new thread(workerfunc));
-   
 
-    // Perform application initialization:
+    registry_key rk(HKEY_CURRENT_USER, "AutoBrightness", "isauto");
+    if (rk.dwDisposition == REG_CREATED_NEW_KEY)
+        rk.write(0);
+    else
+        workerthread.reset(new thread(workerfunc));
+    
+
     if (!InitInstance(hInstance, nCmdShow)) return FALSE;
     hAccelTable = LoadAccelerators(hInstance, (LPCTSTR)IDC_STEALTHDIALOG);
 
-    // Main message loop:
     while (GetMessage(&msg, NULL, 0, 0))
     {
         if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg) ||

@@ -149,6 +149,7 @@
     <ClInclude Include="datetime.h" />
     <ClInclude Include="registry.h" />
     <ClInclude Include="Resource.h" />
+    <ClInclude Include="util.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Win32 Dialog.rc" />

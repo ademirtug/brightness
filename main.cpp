@@ -8,6 +8,12 @@
 #include <commctrl.h>
 #include <Shellapi.h>
 #include <Shlwapi.h>
+#include <memory>
+#include <functional>
+#include <memory>
+#include <iostream>
+
+
 #include "resource.h"
 #include "registry.h"
 #include "util.h"
@@ -93,7 +99,7 @@ int CALLBACK WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
     if (rk.dwDisposition == REG_CREATED_NEW_KEY)
         rk.write(0);
     else
-        workerthread.reset(new thread(workerfunc));
+        workerthread.reset(new safethread(workerfunc));
     
 
     if (!InitInstance(hInstance, nCmdShow)) return FALSE;
@@ -113,8 +119,6 @@ int CALLBACK WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 
 INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    int wmId, wmEvent;
-
     switch (message)
     {
         case WM_NCACTIVATE:
@@ -122,48 +126,72 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             if (wParam == 0)
             {
                 ShowWindow(hWnd, SW_HIDE);
+                
+            }
+        }
+        break;
+        case WM_ACTIVATE:
+        {
+            if (wParam == WA_ACTIVE)
+            {
+                //ShowWindow(hWnd, SW_HIDE);
+                //SendMessage(hWnd, WM_LBUTTONDOWN, 0, 0);
+                //SetFocus(hWnd);
+            }
+            else if (wParam == WA_INACTIVE)
+            {
+                //MessageBox(hWnd, L"ss", L"dd", MB_OK);
+                ShowWindow(hWnd, SW_HIDE);
             }
         }
         break;
         case WM_VSCROLL:
         {
+            workerthread.reset();
+
+            registry_key rk(HKEY_CURRENT_USER, "AutoBrightness", "isauto");
+            rk.write(0);
+            HWND chk = GetDlgItem(hWnd, IDC_CHECK1);
+            SendMessage(chk, BM_SETCHECK, BST_UNCHECKED, 0);
+
             HWND sliderConLo = GetDlgItem(hWnd, IDC_SLIDER1);
             int p = 100 - SendMessage(sliderConLo, TBM_GETPOS, 0, 0);
             set_brightness(p);
         }
         break;
         case SWM_TRAYMSG:
+        {
             switch (lParam)
             {
-            case WM_LBUTTONUP:
-            {
-                POINT pt;
-                GetCursorPos(&pt);
-                RECT r;
-                GetWindowRect(hWnd, &r);
-                SetWindowPos(hWnd, HWND_TOPMOST, pt.x - (r.right - r.left), pt.y - (r.bottom - r.top) - 20, -1, -1, SWP_NOSIZE);
-                HWND sliderConLo = GetDlgItem(hWnd, IDC_SLIDER1);
-                SendMessage(sliderConLo, TBM_SETRANGE, (WPARAM)1, (LPARAM)MAKELONG(0, 100));
-                SendMessage(sliderConLo, TBM_SETPOS, TRUE, 100 - get_brightness());
-                DWORD isauto = 0;
+                case WM_LBUTTONUP:
+                {
+                    POINT pt;
+                    GetCursorPos(&pt);
+                    RECT r;
+                    GetWindowRect(hWnd, &r);
+                    SetWindowPos(hWnd, HWND_TOP, pt.x - (r.right - r.left), pt.y - (r.bottom - r.top) - 20, -1, -1, SWP_NOSIZE);
+                    HWND sliderConLo = GetDlgItem(hWnd, IDC_SLIDER1);
+                    SendMessage(sliderConLo, TBM_SETRANGE, (WPARAM)1, (LPARAM)MAKELONG(0, 100));
+                    SendMessage(sliderConLo, TBM_SETPOS, TRUE, 100 - get_brightness());
+                    DWORD isauto = 0;
 
-                registry_key rk(HKEY_CURRENT_USER, "AutoBrightness", "isauto");
+                    registry_key rk(HKEY_CURRENT_USER, "AutoBrightness", "isauto");
 
-                HWND chk = GetDlgItem(hWnd, IDC_CHECK1);
-                if (rk.readdword())
-                    SendMessage(chk, BM_SETCHECK, BST_CHECKED, 0);
-                else
-                    SendMessage(chk, BM_SETCHECK, BST_UNCHECKED, 0);
+                    HWND chk = GetDlgItem(hWnd, IDC_CHECK1);
+                    if (rk.readdword())
+                        SendMessage(chk, BM_SETCHECK, BST_CHECKED, 0);
+                    else
+                        SendMessage(chk, BM_SETCHECK, BST_UNCHECKED, 0);
 
-                ShowWindow(hWnd, SW_RESTORE);
-                SetFocus(sliderConLo);
+                    ShowWindow(hWnd, SW_RESTORE);
+                }
+                break;
+                case WM_RBUTTONDOWN:
+                case WM_CONTEXTMENU:
+                    ShowContextMenu(hWnd);
             }
             break;
-            case WM_RBUTTONDOWN:
-            case WM_CONTEXTMENU:
-                ShowContextMenu(hWnd);
-            }
-            break;
+        }
         case WM_SYSCOMMAND:
         if ((wParam & 0xFFF0) == SC_MINIMIZE)
         {
@@ -179,9 +207,6 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 ShowWindow(hWnd, SW_RESTORE);
                 break;
             case SWM_HIDE:
-            case IDOK:
-                ShowWindow(hWnd, SW_HIDE);
-                break;
             case SWM_EXIT:
                 DestroyWindow(hWnd);
                 break;
@@ -192,9 +217,20 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 case BN_CLICKED:
                     registry_key rk(HKEY_CURRENT_USER, "AutoBrightness", "isauto");
                     if (SendDlgItemMessage(hWnd, IDC_CHECK1, BM_GETCHECK, 0, 0))
+                    {
+                        datetime curr_time = datetime::now();
+                        HWND sliderConLo = GetDlgItem(hWnd, IDC_SLIDER1);
+                        SendMessage(sliderConLo, TBM_SETPOS, TRUE, getbrbyhour(curr_time.hour()));
+
+                        workerthread.reset(new safethread(workerfunc));
                         rk.write(1);
+                    }
                     else
+                    {
+                        workerthread.reset();
                         rk.write(0);
+                    }
+                        
                     break;
                 }
             }
@@ -208,8 +244,8 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         case WM_DESTROY:
         {
             niData.uFlags = 0;
-            if (workerthread != NULL)
-                workerthread->detach();
+            workerthread.reset();
+
             Shell_NotifyIcon(NIM_DELETE, &niData);
             PostQuitMessage(0);
         }

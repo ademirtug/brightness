@@ -9,11 +9,11 @@ ULONGLONG			GetDllVersion(LPCTSTR lpszDllName);
 INT_PTR CALLBACK	DlgProc(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK GlobalKeyHookProc(int code, WPARAM wParam, LPARAM lParam);
 LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
-
+class safethread;
 
 void set_brightness(int val);
 int get_brightness();
-std::shared_ptr<std::thread> workerthread;
+std::shared_ptr<safethread> workerthread;
 HHOOK hKeyboardHook = 0;
 DWORD dw;
 HMONITOR hMonitor = NULL;
@@ -24,6 +24,23 @@ HANDLE pmh;
 HINSTANCE		hInst;	// current instance
 NOTIFYICONDATA	niData;	// notify icon data
 
+class safethread
+{
+public:
+    shared_ptr<thread> th;
+
+    safethread(std::function<void()> f)
+    {
+        th.reset(new thread(f));
+    };
+    ~safethread()
+    {
+        if (th != nullptr && th->joinable())
+        {
+            th->detach();
+        }
+    };
+};
 
 ULONGLONG GetDllVersion(LPCTSTR lpszDllName)
 {
@@ -49,7 +66,7 @@ ULONGLONG GetDllVersion(LPCTSTR lpszDllName)
     return ullVersion;
 }
 
-void SetNumLock(BOOL bState)
+void SetScrollLock(BOOL bState)
 {
     BYTE keyState[256];
 
@@ -105,23 +122,25 @@ int get_brightness()
     return cb;
 }
 
+int getbrbyhour(int hour)
+{
+    int br_array[] = {
+    0,0,0,0,0,
+    /*5*/0,0,0,0,20,
+    /*10*/35,40,50,60,60,
+    /*15*/100,100,100,100,70,
+    /*20*/0,0,0,0 };
+
+    return br_array[hour];
+}
 void workerfunc()
 {
-    SetNumLock(TRUE);
-
-    int br_array[] = {
-        0,0,0,0,0,
-        /*5*/0,0,0,0,20,
-        /*10*/35,40,50,60,60,
-        /*15*/100,100,100,100,70,
-        /*20*/0,0,0,0 };
+    SetScrollLock(TRUE);
 
     while (true)
     {
         datetime curr_time = datetime::now();
-
-        //SetMonitorBrightness(pmh, br_array[curr_time.hour()]);
-        set_brightness(br_array[curr_time.hour()]);
+        set_brightness(getbrbyhour(curr_time.hour()));
         this_thread::sleep_for(chrono::seconds(60));
     }
 }

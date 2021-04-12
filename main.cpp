@@ -95,12 +95,23 @@ int CALLBACK WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
         pmh = pPhysicalMonitors[0].hPhysicalMonitor;
     }
 
-    registry_key rk(HKEY_CURRENT_USER, "AutoBrightness", "isauto");
+    registry_key rk(HKEY_CURRENT_USER, "SOFTWARE\\AutoBrightness", "isauto");
     if (rk.dwDisposition == REG_CREATED_NEW_KEY)
         rk.write(0);
-    else
+    
+    if(rk.readdword())
         workerthread.reset(new safethread(workerfunc));
     
+
+    registry_key rk2(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Run\\", "AutoBrightness");
+    if (rk.dwDisposition == REG_CREATED_NEW_KEY)
+    {
+        char szFileName[MAX_PATH];
+        GetModuleFileNameA(NULL, szFileName, MAX_PATH);
+        rk2.write(szFileName);
+    }   
+
+
 
     if (!InitInstance(hInstance, nCmdShow)) return FALSE;
     hAccelTable = LoadAccelerators(hInstance, (LPCTSTR)IDC_STEALTHDIALOG);
@@ -149,7 +160,7 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         {
             workerthread.reset();
 
-            registry_key rk(HKEY_CURRENT_USER, "AutoBrightness", "isauto");
+            registry_key rk(HKEY_CURRENT_USER, "SOFTWARE\\AutoBrightness", "isauto");
             rk.write(0);
             HWND chk = GetDlgItem(hWnd, IDC_CHECK1);
             SendMessage(chk, BM_SETCHECK, BST_UNCHECKED, 0);
@@ -169,13 +180,13 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     GetCursorPos(&pt);
                     RECT r;
                     GetWindowRect(hWnd, &r);
-                    SetWindowPos(hWnd, HWND_TOP, pt.x - (r.right - r.left), pt.y - (r.bottom - r.top) - 20, -1, -1, SWP_NOSIZE);
+                    SetWindowPos(hWnd, HWND_TOPMOST, pt.x - (r.right - r.left), pt.y - (r.bottom - r.top) - 20, -1, -1, SWP_NOSIZE);
                     HWND sliderConLo = GetDlgItem(hWnd, IDC_SLIDER1);
                     SendMessage(sliderConLo, TBM_SETRANGE, (WPARAM)1, (LPARAM)MAKELONG(0, 100));
                     SendMessage(sliderConLo, TBM_SETPOS, TRUE, 100 - get_brightness());
                     DWORD isauto = 0;
 
-                    registry_key rk(HKEY_CURRENT_USER, "AutoBrightness", "isauto");
+                    registry_key rk(HKEY_CURRENT_USER, "SOFTWARE\\AutoBrightness", "isauto");
 
                     HWND chk = GetDlgItem(hWnd, IDC_CHECK1);
                     if (rk.readdword())
@@ -215,12 +226,12 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 switch (HIWORD(wParam))
                 {
                 case BN_CLICKED:
-                    registry_key rk(HKEY_CURRENT_USER, "AutoBrightness", "isauto");
+                    registry_key rk(HKEY_CURRENT_USER, "SOFTWARE\\AutoBrightness", "isauto");
                     if (SendDlgItemMessage(hWnd, IDC_CHECK1, BM_GETCHECK, 0, 0))
                     {
                         datetime curr_time = datetime::now();
                         HWND sliderConLo = GetDlgItem(hWnd, IDC_SLIDER1);
-                        SendMessage(sliderConLo, TBM_SETPOS, TRUE, getbrbyhour(curr_time.hour()));
+                        SendMessage(sliderConLo, TBM_SETPOS, TRUE, 100 - getbrbyhour(curr_time.hour()));
 
                         workerthread.reset(new safethread(workerfunc));
                         rk.write(1);
@@ -250,6 +261,16 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             PostQuitMessage(0);
         }
         break;
+        case WM_POWERBROADCAST:
+        {
+            if (wParam == PBT_APMRESUMEAUTOMATIC)
+            {
+                registry_key rk(HKEY_CURRENT_USER, "SOFTWARE\\AutoBrightness", "isauto");
+                if( rk.readdword() )
+                    workerthread.reset(new safethread(workerfunc));
+                
+            }
+        }
     }
     return 0;
 }
@@ -269,6 +290,8 @@ LRESULT CALLBACK GlobalKeyHookProc(int code, WPARAM wParam, LPARAM lParam)
         {
         case VK_ADD:
         {
+            registry_key rk(HKEY_CURRENT_USER, "SOFTWARE\\AutoBrightness", "isauto");
+            rk.write(0);
             int cb = get_brightness();
             cb = ((cb + 10) < 0 || (cb + 10) > 100) ? 100 : cb + 10;
             set_brightness(cb);
@@ -276,6 +299,8 @@ LRESULT CALLBACK GlobalKeyHookProc(int code, WPARAM wParam, LPARAM lParam)
         break;
         case VK_SUBTRACT:
         {
+            registry_key rk(HKEY_CURRENT_USER, "SOFTWARE\\AutoBrightness", "isauto");
+            rk.write(0);
             int cb = get_brightness();
             cb = ((cb - 10) < 0 || (cb - 10) > 100) ? 0 : cb - 10;
             set_brightness(cb);

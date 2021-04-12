@@ -49,6 +49,17 @@ public:
             return false;
         return true;
     }
+    bool write(std::string data)
+    {
+        DWORD Ret;
+        if (!opened)
+            if (!createopen())
+                return false;
+
+        if (ERROR_SUCCESS != RegSetValueExA(hKey, valueName.c_str(), 0, REG_SZ, (LPBYTE)(data.c_str()), (data.size() + 1) * sizeof(char)));
+            return false;
+        return true;
+    }
     DWORD readdword()
     {
         DWORD data, Ret;

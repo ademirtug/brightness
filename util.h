@@ -108,7 +108,7 @@ std::string GetLastErrorAsString()
 }
 
 int altg_active() {
-    return (GetKeyState(VK_RMENU));
+    return (GetKeyState(VK_RCONTROL) & GetKeyState(VK_RSHIFT));
 }
 
 void set_brightness(int val)

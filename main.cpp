@@ -21,6 +21,43 @@
 #pragma comment(lib, "comctl32.lib")
 #pragma comment(lib, "advapi32.lib")
 
+
+//#define DBOUT( s )            \
+//{                             \
+//   std::ostringstream os_;    \
+//   os_ << s;                   \
+//   OutputDebugString( os_.str().c_str() );  \
+//}
+
+#define DBOUT( s )            \
+{                             \
+   std::wostringstream os_;    \
+   os_ << s;                   \
+   OutputDebugStringW( os_.str().c_str() );  \
+}
+//int AW_ACTIVATE = 0x00020000;
+//int AW_BLEND = 0X80000;
+//int AW_CENTER = 0x00000010;
+//const int AW_HIDE = 0x00010000;
+//const int AW_HOR_POSITIVE = 0x00000001;
+//const int AW_HOR_NEGATIVE = 0x00000002;
+//const int AW_SLIDE = 0X40000;
+//const int AW_VER_POSITIVE = 0x00000004;
+//const int AW_VER_NEGATIVE = 0x00000008;
+
+
+void AnimateDown(HWND hWnd)
+{
+    bool ok = AnimateWindow(hWnd, 150, AW_SLIDE | AW_HIDE | AW_VER_POSITIVE);
+    
+}
+void AnimateUp(HWND hWnd)
+{
+    bool ok = AnimateWindow(hWnd, 150, AW_SLIDE | AW_VER_NEGATIVE);
+
+}
+
+
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
     InitCommonControls();
@@ -93,6 +130,7 @@ int CALLBACK WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
         pPhysicalMonitors = (LPPHYSICAL_MONITOR)malloc(cPhysicalMonitors * sizeof(PHYSICAL_MONITOR));
         bSuccess = GetPhysicalMonitorsFromHMONITOR(hMonitor, cPhysicalMonitors, pPhysicalMonitors);
         pmh = pPhysicalMonitors[0].hPhysicalMonitor;
+
     }
 
     registry_key rk(HKEY_CURRENT_USER, "SOFTWARE\\AutoBrightness", "isauto");
@@ -111,6 +149,7 @@ int CALLBACK WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
         rk2.write(szFileName);
     }   
 
+    DBOUT(L"winmain")
 
 
     if (!InitInstance(hInstance, nCmdShow)) return FALSE;
@@ -145,14 +184,17 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         {
             if (wParam == WA_ACTIVE)
             {
+                DBOUT(L"WM active\n\n\n")
                 //ShowWindow(hWnd, SW_HIDE);
                 //SendMessage(hWnd, WM_LBUTTONDOWN, 0, 0);
                 //SetFocus(hWnd);
             }
             else if (wParam == WA_INACTIVE)
             {
-                //MessageBox(hWnd, L"ss", L"dd", MB_OK);
-                ShowWindow(hWnd, SW_HIDE);
+                DBOUT(L"WM INactive\n\n\n")
+                    //MessageBox(hWnd, L"ss", L"dd", MB_OK);
+                    //ShowWindow(hWnd, SW_HIDE);
+                    AnimateDown(hWnd);
             }
         }
         break;
@@ -180,7 +222,31 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     GetCursorPos(&pt);
                     RECT r;
                     GetWindowRect(hWnd, &r);
-                    SetWindowPos(hWnd, HWND_TOPMOST, pt.x - (r.right - r.left), pt.y - (r.bottom - r.top) - 20, -1, -1, SWP_NOSIZE);
+
+                    MONITORINFO mi;
+                    GetMonitorInfoA(hMonitor, &mi);
+
+
+                    RECT desktopRect;
+                    if (!GetWindowRect(GetDesktopWindow(), &desktopRect))
+                        return FALSE;
+
+                    int windowWidth = (r.right - r.left);
+                    int windowHeight = (r.bottom - r.top);
+                    int posX = desktopRect.right - windowWidth;
+                    int posY = desktopRect.bottom - windowHeight;
+                    //HWND hWnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
+                    //    posX, posY, windowWidth, windowHeight, nullptr, nullptr, hInstance, nullptr);
+
+
+
+
+                    SetWindowPos(hWnd, HWND_TOPMOST, posX, posY, -1, -1, SWP_NOSIZE);
+
+                    //SetWindowPos(hWnd, HWND_TOPMOST, pt.x - (r.right - r.left), pt.y - (r.bottom - r.top) - 20, -1, -1, SWP_NOSIZE);
+                    
+                    
+                    
                     HWND sliderConLo = GetDlgItem(hWnd, IDC_SLIDER1);
                     SendMessage(sliderConLo, TBM_SETRANGE, (WPARAM)1, (LPARAM)MAKELONG(0, 100));
                     SendMessage(sliderConLo, TBM_SETPOS, TRUE, 100 - get_brightness());
@@ -194,7 +260,8 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     else
                         SendMessage(chk, BM_SETCHECK, BST_UNCHECKED, 0);
 
-                    ShowWindow(hWnd, SW_RESTORE);
+                    AnimateUp(hWnd);
+                    //ShowWindow(hWnd, SW_RESTORE);
                 }
                 break;
                 case WM_RBUTTONDOWN:

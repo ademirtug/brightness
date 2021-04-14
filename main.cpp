@@ -65,6 +65,11 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     HWND hWnd = CreateDialog(hInstance, MAKEINTRESOURCE(IDD_DLG_DIALOG), NULL, (DLGPROC)DlgProc);
     if (!hWnd)
         return FALSE;
+    
+    //HWND lbl = GetDlgItem(hWnd, IDC_STATIC1);
+    //HFONT hFont = CreateFont(14, 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE, ANSI_CHARSET,
+    //    OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, L"Arial");
+    //SendMessage(lbl, WM_SETFONT, WPARAM(hFont), TRUE);
 
     hKeyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, GlobalKeyHookProc, hInstance, 0);
     
@@ -77,7 +82,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     
     niData.uID = TRAYICONID;
     niData.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
-    niData.hIcon = (HICON)LoadImage(hInstance, MAKEINTRESOURCE(IDI_STEALTHDLG),
+    niData.hIcon = (HICON)LoadImage(hInstance, MAKEINTRESOURCE(IDI_SYSICO),
         IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON),
         LR_DEFAULTCOLOR);
     niData.hWnd = hWnd;
@@ -142,19 +147,15 @@ int CALLBACK WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
         workerthread.reset(new safethread(workerfunc));
     
 
-    registry_key rk2(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Run\\", "AutoBrightness");
-    if (rk.dwDisposition == REG_CREATED_NEW_KEY)
-    {
-        char szFileName[MAX_PATH];
-        GetModuleFileNameA(NULL, szFileName, MAX_PATH);
-        rk2.write(szFileName);
-    }   
+    registry_key rk2(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Run", "AutoBr");
 
-    DBOUT(L"winmain")
+    char szFileName[MAX_PATH];
+    GetModuleFileNameA(NULL, szFileName, MAX_PATH);
+    rk2.write(szFileName);
+  
 
-
-    if (!InitInstance(hInstance, nCmdShow)) return FALSE;
-    hAccelTable = LoadAccelerators(hInstance, (LPCTSTR)IDC_STEALTHDIALOG);
+    if (!InitInstance(hInstance, nCmdShow)) 
+        return FALSE;
 
     while (GetMessage(&msg, NULL, 0, 0))
     {
@@ -174,7 +175,7 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     {
         //case WM_CTLCOLORDLG:
         //    return (INT_PTR)GetStockObject(BLACK_BRUSH);
-        case WM_NCACTIVATE:
+         case WM_NCACTIVATE:
         {
             if (wParam == 0)
             {
@@ -217,6 +218,9 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     GetCursorPos(&pt);
                     RECT r;
                     GetWindowRect(hWnd, &r);
+
+
+
 
                     MONITORINFO mi;
                     mi.cbSize = sizeof(MONITORINFO);

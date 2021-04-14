@@ -23,24 +23,24 @@
     <ClInclude Include="datetime.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Resource.h">
-      <Filter>Resource Files</Filter>
-    </ClInclude>
     <ClInclude Include="registry.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="util.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-  </ItemGroup>
-  <ItemGroup>
-    <ResourceCompile Include="Win32 Dialog.rc">
+    <ClInclude Include="resource.h">
       <Filter>Resource Files</Filter>
-    </ResourceCompile>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Image Include="Brightness.ico">
       <Filter>Resource Files</Filter>
     </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="brightness.rc">
+      <Filter>Resource Files</Filter>
+    </ResourceCompile>
   </ItemGroup>
 </Project>

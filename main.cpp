@@ -125,6 +125,7 @@ int CALLBACK WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
     hMonitor = MonitorFromPoint({5,5}, 0);
 
     BOOL bSuccess = GetNumberOfPhysicalMonitorsFromHMONITOR(hMonitor, &cPhysicalMonitors);
+
     if (bSuccess)
     {
         pPhysicalMonitors = (LPPHYSICAL_MONITOR)malloc(cPhysicalMonitors * sizeof(PHYSICAL_MONITOR));
@@ -171,12 +172,13 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
+        //case WM_CTLCOLORDLG:
+        //    return (INT_PTR)GetStockObject(BLACK_BRUSH);
         case WM_NCACTIVATE:
         {
             if (wParam == 0)
             {
                 ShowWindow(hWnd, SW_HIDE);
-                
             }
         }
         break;
@@ -184,21 +186,14 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         {
             if (wParam == WA_ACTIVE)
             {
-                DBOUT(L"WM active\n\n\n")
-                //ShowWindow(hWnd, SW_HIDE);
-                //SendMessage(hWnd, WM_LBUTTONDOWN, 0, 0);
-                //SetFocus(hWnd);
             }
             else if (wParam == WA_INACTIVE)
             {
-                DBOUT(L"WM INactive\n\n\n")
-                    //MessageBox(hWnd, L"ss", L"dd", MB_OK);
-                    //ShowWindow(hWnd, SW_HIDE);
-                    AnimateDown(hWnd);
+                AnimateDown(hWnd);
             }
         }
         break;
-        case WM_VSCROLL:
+        case WM_HSCROLL:
         {
             workerthread.reset();
 
@@ -208,7 +203,7 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             SendMessage(chk, BM_SETCHECK, BST_UNCHECKED, 0);
 
             HWND sliderConLo = GetDlgItem(hWnd, IDC_SLIDER1);
-            int p = 100 - SendMessage(sliderConLo, TBM_GETPOS, 0, 0);
+            int p = SendMessage(sliderConLo, TBM_GETPOS, 0, 0);
             set_brightness(p);
         }
         break;
@@ -224,8 +219,9 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     GetWindowRect(hWnd, &r);
 
                     MONITORINFO mi;
-                    GetMonitorInfoA(hMonitor, &mi);
-
+                    mi.cbSize = sizeof(MONITORINFO);
+                    GetMonitorInfo(hMonitor, &mi);
+                   
 
                     RECT desktopRect;
                     if (!GetWindowRect(GetDesktopWindow(), &desktopRect))
@@ -233,23 +229,14 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                     int windowWidth = (r.right - r.left);
                     int windowHeight = (r.bottom - r.top);
-                    int posX = desktopRect.right - windowWidth;
-                    int posY = desktopRect.bottom - windowHeight;
-                    //HWND hWnd = CreateWindow(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-                    //    posX, posY, windowWidth, windowHeight, nullptr, nullptr, hInstance, nullptr);
-
-
-
+                    int posX = mi.rcWork.right - windowWidth;
+                    int posY = mi.rcWork.bottom - windowHeight;
 
                     SetWindowPos(hWnd, HWND_TOPMOST, posX, posY, -1, -1, SWP_NOSIZE);
-
-                    //SetWindowPos(hWnd, HWND_TOPMOST, pt.x - (r.right - r.left), pt.y - (r.bottom - r.top) - 20, -1, -1, SWP_NOSIZE);
-                    
-                    
                     
                     HWND sliderConLo = GetDlgItem(hWnd, IDC_SLIDER1);
                     SendMessage(sliderConLo, TBM_SETRANGE, (WPARAM)1, (LPARAM)MAKELONG(0, 100));
-                    SendMessage(sliderConLo, TBM_SETPOS, TRUE, 100 - get_brightness());
+                    SendMessage(sliderConLo, TBM_SETPOS, TRUE, get_brightness());
                     DWORD isauto = 0;
 
                     registry_key rk(HKEY_CURRENT_USER, "SOFTWARE\\AutoBrightness", "isauto");
@@ -298,7 +285,7 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     {
                         datetime curr_time = datetime::now();
                         HWND sliderConLo = GetDlgItem(hWnd, IDC_SLIDER1);
-                        SendMessage(sliderConLo, TBM_SETPOS, TRUE, 100 - getbrbyhour(curr_time.hour()));
+                        SendMessage(sliderConLo, TBM_SETPOS, TRUE, getbrbyhour(curr_time.hour()));
 
                         workerthread.reset(new safethread(workerfunc));
                         rk.write(1);

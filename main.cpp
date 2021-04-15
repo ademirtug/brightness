@@ -54,7 +54,7 @@ void AnimateDown(HWND hWnd)
 void AnimateUp(HWND hWnd)
 {
     bool ok = AnimateWindow(hWnd, 150, AW_SLIDE | AW_VER_NEGATIVE);
-
+    SendMessage(hWnd, WM_ACTIVATE, WA_ACTIVE, 0);
 }
 
 
@@ -141,27 +141,20 @@ int CALLBACK WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
     if(rk.readdword())
         workerthread.reset(new safethread(workerfunc));
     
-
+#ifndef _DEBUG
     registry_key rk2(HKEY_CURRENT_USER, "Software\\Microsoft\\Windows\\CurrentVersion\\Run", "AutoBr");
-
     char szFileName[MAX_PATH];
     GetModuleFileNameA(NULL, szFileName, MAX_PATH);
     rk2.write(szFileName);
-  
+#endif
 
     if (!InitInstance(hInstance, nCmdShow)) 
         return FALSE;
 
     while (GetMessage(&msg, NULL, 0, 0))
     {
-        if (msg.message == WM_HSCROLL)
-        {
-            int z = 5;
-        }
-
         if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg) || !IsDialogMessage(msg.hwnd, &msg))
         {
-
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
@@ -173,36 +166,15 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
-        //case WM_CTLCOLORDLG:
-        //    return (INT_PTR)GetStockObject(BLACK_BRUSH);
-         case WM_NCACTIVATE:
+        case WM_NCACTIVATE:
         {
             if (wParam == 0)
             {
                 ShowWindow(hWnd, SW_HIDE);
+
             }
         }
         break;
-         case WM_MOUSEWHEEL:
-         {
-             workerthread.reset();
-
-             registry_key rk(HKEY_CURRENT_USER, "SOFTWARE\\AutoBrightness", "isauto");
-             rk.write(0);
-
-             HWND chk = GetDlgItem(hWnd, IDC_CHECK1);
-             SendMessage(chk, BM_SETCHECK, BST_UNCHECKED, 0);
-
-             int zDelta = GET_WHEEL_DELTA_WPARAM(wParam);
-             int nb = get_brightness() + (zDelta > 0 ? 5 : -5);
-             nb = clamp(nb, 0, 100);
-
-             set_brightness(nb);
-
-             HWND sliderConLo = GetDlgItem(hWnd, IDC_SLIDER1);
-             int p = SendMessage(sliderConLo, TBM_SETPOS, true, nb);
-         }
-         break;
         case WM_ACTIVATE:
         {
             if (wParam == WA_ACTIVE)
@@ -214,6 +186,12 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
         }
         break;
+        case WM_MOUSEWHEEL:
+        {
+            int nb = get_brightness() + (GET_WHEEL_DELTA_WPARAM(wParam) > 0 ? - 5 : 5);
+            HWND sliderConLo = GetDlgItem(hWnd, IDC_SLIDER1);
+            int p = SendMessage(sliderConLo, TBM_SETPOS, true, nb);
+        }
         case WM_HSCROLL:
         {
             workerthread.reset();
@@ -280,31 +258,34 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         {
             switch (LOWORD(wParam))
             {
-            case IDC_CHECK1:
-            {
-                switch (HIWORD(wParam))
+                case IDC_CHECK1:
                 {
-                case BN_CLICKED:
-                    registry_key rk(HKEY_CURRENT_USER, "SOFTWARE\\AutoBrightness", "isauto");
-                    if (SendDlgItemMessage(hWnd, IDC_CHECK1, BM_GETCHECK, 0, 0))
+                    switch (HIWORD(wParam))
                     {
-                        datetime curr_time = datetime::now();
-                        HWND sliderConLo = GetDlgItem(hWnd, IDC_SLIDER1);
-                        SendMessage(sliderConLo, TBM_SETPOS, TRUE, getbrbyhour(curr_time.hour()));
+                    case BN_CLICKED:
+                        registry_key rk(HKEY_CURRENT_USER, "SOFTWARE\\AutoBrightness", "isauto");
+                        if (SendDlgItemMessage(hWnd, IDC_CHECK1, BM_GETCHECK, 0, 0))
+                        {
+                            datetime curr_time = datetime::now();
+                            HWND sliderConLo = GetDlgItem(hWnd, IDC_SLIDER1);
+                            SendMessage(sliderConLo, TBM_SETPOS, TRUE, getbrbyhour(curr_time.hour()));
 
-                        workerthread.reset(new safethread(workerfunc));
-                        rk.write(1);
+                            workerthread.reset(new safethread(workerfunc));
+                            rk.write(1);
+                        }
+                        else
+                        {
+                            workerthread.reset();
+                            rk.write(0);
+                        }
+                        break;
                     }
-                    else
-                    {
-                        workerthread.reset();
-                        rk.write(0);
-                    }
-                        
-                    break;
                 }
-            }
-            break;
+                break;
+                case SWM_EXIT:
+                {
+                    exit(0);
+                }
             }  
         }
         return 1;

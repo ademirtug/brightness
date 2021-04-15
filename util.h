@@ -25,8 +25,6 @@ HINSTANCE		hInst;	// current instance
 NOTIFYICONDATA	niData;	// notify icon data
 
 
-#define SWM_SHOW	WM_APP + 1//	show the window
-#define SWM_HIDE	WM_APP + 2//	hide the window
 #define SWM_EXIT	WM_APP + 3//	close the window
 #define TRAYICONID	1//				ID number for the Notify Icon
 #define SWM_TRAYMSG	WM_APP//		the message ID sent to our window

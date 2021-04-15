@@ -12,7 +12,7 @@
 #include <functional>
 #include <memory>
 #include <iostream>
-
+#include <algorithm>
 
 #include "resource.h"
 #include "registry.h"
@@ -65,11 +65,6 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
     HWND hWnd = CreateDialog(hInstance, MAKEINTRESOURCE(IDD_DLG_DIALOG), NULL, (DLGPROC)DlgProc);
     if (!hWnd)
         return FALSE;
-    
-    //HWND lbl = GetDlgItem(hWnd, IDC_STATIC1);
-    //HFONT hFont = CreateFont(14, 0, 0, 0, FW_DONTCARE, FALSE, FALSE, FALSE, ANSI_CHARSET,
-    //    OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS, DEFAULT_QUALITY, DEFAULT_PITCH | FF_SWISS, L"Arial");
-    //SendMessage(lbl, WM_SETFONT, WPARAM(hFont), TRUE);
 
     hKeyboardHook = SetWindowsHookEx(WH_KEYBOARD_LL, GlobalKeyHookProc, hInstance, 0);
     
@@ -159,9 +154,14 @@ int CALLBACK WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance,
 
     while (GetMessage(&msg, NULL, 0, 0))
     {
-        if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg) ||
-            !IsDialogMessage(msg.hwnd, &msg))
+        if (msg.message == WM_HSCROLL)
         {
+            int z = 5;
+        }
+
+        if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg) || !IsDialogMessage(msg.hwnd, &msg))
+        {
+
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
@@ -183,6 +183,26 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
         }
         break;
+         case WM_MOUSEWHEEL:
+         {
+             workerthread.reset();
+
+             registry_key rk(HKEY_CURRENT_USER, "SOFTWARE\\AutoBrightness", "isauto");
+             rk.write(0);
+
+             HWND chk = GetDlgItem(hWnd, IDC_CHECK1);
+             SendMessage(chk, BM_SETCHECK, BST_UNCHECKED, 0);
+
+             int zDelta = GET_WHEEL_DELTA_WPARAM(wParam);
+             int nb = get_brightness() + (zDelta > 0 ? 5 : -5);
+             nb = clamp(nb, 0, 100);
+
+             set_brightness(nb);
+
+             HWND sliderConLo = GetDlgItem(hWnd, IDC_SLIDER1);
+             int p = SendMessage(sliderConLo, TBM_SETPOS, true, nb);
+         }
+         break;
         case WM_ACTIVATE:
         {
             if (wParam == WA_ACTIVE)
@@ -219,13 +239,9 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     RECT r;
                     GetWindowRect(hWnd, &r);
 
-
-
-
                     MONITORINFO mi;
                     mi.cbSize = sizeof(MONITORINFO);
-                    GetMonitorInfo(hMonitor, &mi);
-                   
+                    GetMonitorInfo(hMonitor, &mi);          
 
                     RECT desktopRect;
                     if (!GetWindowRect(GetDesktopWindow(), &desktopRect))
@@ -252,7 +268,6 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                         SendMessage(chk, BM_SETCHECK, BST_UNCHECKED, 0);
 
                     AnimateUp(hWnd);
-                    //ShowWindow(hWnd, SW_RESTORE);
                 }
                 break;
                 case WM_RBUTTONDOWN:
@@ -261,24 +276,10 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             }
             break;
         }
-        case WM_SYSCOMMAND:
-        if ((wParam & 0xFFF0) == SC_MINIMIZE)
-        {
-            ShowWindow(hWnd, SW_HIDE);
-            return 1;
-        }
-            break;
         case WM_COMMAND:
         {
             switch (LOWORD(wParam))
             {
-            case SWM_SHOW:
-                ShowWindow(hWnd, SW_RESTORE);
-                break;
-            case SWM_HIDE:
-            case SWM_EXIT:
-                DestroyWindow(hWnd);
-                break;
             case IDC_CHECK1:
             {
                 switch (HIWORD(wParam))

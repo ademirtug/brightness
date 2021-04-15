@@ -80,34 +80,22 @@ void SetScrollLock(BOOL bState)
     if ((bState && !(keyState[VK_SCROLL] & 1)) ||
         (!bState && (keyState[VK_SCROLL] & 1)))
     {
-        // Simulate a key press
-        keybd_event(VK_SCROLL,
-            0x45,
-            KEYEVENTF_EXTENDEDKEY | 0,
-            0);
-
-        // Simulate a key release
-        keybd_event(VK_SCROLL,
-            0x45,
-            KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP,
-            0);
+        keybd_event(VK_SCROLL, 0x45, KEYEVENTF_EXTENDEDKEY | 0, 0);
+        keybd_event(VK_SCROLL,  0x45, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP,0);
     }
 }
 
 std::string GetLastErrorAsString()
 {
-    //Get the error message, if any.
     DWORD errorMessageID = ::GetLastError();
     if (errorMessageID == 0)
-        return std::string(); //No error message has been recorded
+        return std::string();
 
     LPSTR messageBuffer = nullptr;
     size_t size = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
         NULL, errorMessageID, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&messageBuffer, 0, NULL);
 
     std::string message(messageBuffer, size);
-
-    //Free the buffer.
     LocalFree(messageBuffer);
 
     return message;
@@ -141,7 +129,7 @@ int getbrbyhour(int hour)
 }
 void workerfunc()
 {
-    SetScrollLock(TRUE);
+    
 
     while (true)
     {

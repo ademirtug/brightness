@@ -49,12 +49,15 @@
 void AnimateDown(HWND hWnd)
 {
     bool ok = AnimateWindow(hWnd, 150, AW_SLIDE | AW_HIDE | AW_VER_POSITIVE);
-    
+    ShowWindow(hWnd, SW_HIDE);
 }
 void AnimateUp(HWND hWnd)
 {
     bool ok = AnimateWindow(hWnd, 150, AW_SLIDE | AW_VER_NEGATIVE);
-    SendMessage(hWnd, WM_ACTIVATE, WA_ACTIVE, 0);
+   // mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
+    //ShowWindow(hWnd, SW_SHOW);
+    SendMessage(hWnd, WM_SETFOCUS, 0, 0);
+    
 }
 
 
@@ -87,6 +90,8 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 
     if (niData.hIcon && DestroyIcon(niData.hIcon))
         niData.hIcon = NULL;
+
+    SetScrollLock(TRUE);
 
     return TRUE;
 }
@@ -168,22 +173,17 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     {
         case WM_NCACTIVATE:
         {
-            if (wParam == 0)
+            if (IsWindowVisible(hWnd))
             {
-                ShowWindow(hWnd, SW_HIDE);
+                RECT hwndrect;
 
+                POINT mouse;
+                GetCursorPos(&mouse);
+                GetWindowRect(hWnd, &hwndrect);
+                if (!PtInRect(&hwndrect, pt))
+                    AnimateDown(hWnd);
             }
-        }
-        break;
-        case WM_ACTIVATE:
-        {
-            if (wParam == WA_ACTIVE)
-            {
-            }
-            else if (wParam == WA_INACTIVE)
-            {
-                AnimateDown(hWnd);
-            }
+
         }
         break;
         case WM_MOUSEWHEEL:

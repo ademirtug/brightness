@@ -54,8 +54,6 @@ void AnimateDown(HWND hWnd)
 void AnimateUp(HWND hWnd)
 {
     bool ok = AnimateWindow(hWnd, 150, AW_SLIDE | AW_VER_NEGATIVE);
-   // mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
-    //ShowWindow(hWnd, SW_SHOW);
     SendMessage(hWnd, WM_SETFOCUS, 0, 0);
     
 }
@@ -240,10 +238,7 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     registry_key rk(HKEY_CURRENT_USER, "SOFTWARE\\AutoBrightness", "isauto");
 
                     HWND chk = GetDlgItem(hWnd, IDC_CHECK1);
-                    if (rk.readdword())
-                        SendMessage(chk, BM_SETCHECK, BST_CHECKED, 0);
-                    else
-                        SendMessage(chk, BM_SETCHECK, BST_UNCHECKED, 0);
+                    SendMessage(chk, BM_SETCHECK, rk.readdword() ? BST_CHECKED : BST_UNCHECKED, 0);
 
                     AnimateUp(hWnd);
                 }

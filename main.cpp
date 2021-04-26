@@ -180,6 +180,8 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 GetWindowRect(hWnd, &hwndrect);
                 if (!PtInRect(&hwndrect, pt))
                     AnimateDown(hWnd);
+
+                //return TRUE;
             }
 
         }
@@ -210,10 +212,13 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
             {
                 case WM_LBUTTONUP:
                 {
+                    
+
                     POINT pt;
                     GetCursorPos(&pt);
                     RECT r;
                     GetWindowRect(hWnd, &r);
+
 
                     MONITORINFO mi;
                     mi.cbSize = sizeof(MONITORINFO);
@@ -229,7 +234,8 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                     int posY = mi.rcWork.bottom - windowHeight;
 
                     SetWindowPos(hWnd, HWND_TOPMOST, posX, posY, -1, -1, SWP_NOSIZE);
-                    
+                    AnimateUp(hWnd);
+
                     HWND sliderConLo = GetDlgItem(hWnd, IDC_SLIDER1);
                     SendMessage(sliderConLo, TBM_SETRANGE, (WPARAM)1, (LPARAM)MAKELONG(0, 100));
                     SendMessage(sliderConLo, TBM_SETPOS, TRUE, get_brightness());
@@ -239,8 +245,8 @@ INT_PTR CALLBACK DlgProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
                     HWND chk = GetDlgItem(hWnd, IDC_CHECK1);
                     SendMessage(chk, BM_SETCHECK, rk.readdword() ? BST_CHECKED : BST_UNCHECKED, 0);
-
-                    AnimateUp(hWnd);
+                    
+                    
                 }
                 break;
                 case WM_RBUTTONDOWN:

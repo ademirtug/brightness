@@ -13,7 +13,7 @@ class safethread;
 
 void set_brightness(int val);
 int get_brightness();
-std::shared_ptr<safethread> workerthread;
+std::unique_ptr<safethread> workerthread;
 HHOOK hKeyboardHook = 0;
 DWORD dw;
 HMONITOR hMonitor = NULL;

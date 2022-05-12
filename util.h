@@ -23,12 +23,14 @@ POINT pt;
 HANDLE pmh;
 HINSTANCE		hInst;	// current instance
 NOTIFYICONDATA	niData;	// notify icon data
-
+HWND hWnd;
 
 #define SWM_EXIT	WM_APP + 3//	close the window
 #define TRAYICONID	1//				ID number for the Notify Icon
 #define SWM_TRAYMSG	WM_APP//		the message ID sent to our window
 
+
+DWORD _isAuto = -1;
 
 class safethread
 {
@@ -108,9 +110,31 @@ int fn_active() {
     return (GetKeyState(VK_RCONTROL) & GetKeyState(VK_RSHIFT));
 }
 
+DWORD isAuto() {
+    return _isAuto;
+}
+
+void isAuto(DWORD val) {
+    _isAuto = val;
+    registry_key rk(HKEY_CURRENT_USER, "SOFTWARE\\AutoBrightness", "isauto");
+    rk.write(_isAuto);    
+}
+
+void set_slider(int val)
+{
+    HWND sliderConLo = GetDlgItem(hWnd, IDC_SLIDER1);
+    SendMessage(sliderConLo, TBM_SETPOS, true, val);
+}
+DWORD get_slider()
+{
+    HWND sliderConLo = GetDlgItem(hWnd, IDC_SLIDER1);
+    return SendMessage(sliderConLo, TBM_GETPOS, 0, 0);
+}
 void set_brightness(int val)
 {
     SetMonitorBrightness(pmh, val);
+    HWND sliderConLo = GetDlgItem(hWnd, IDC_SLIDER1);
+    SendMessage(sliderConLo, TBM_SETPOS, TRUE, val);
 }
 int get_brightness()
 {
@@ -123,21 +147,23 @@ int getbrbyhour(int hour)
 {
     int br_array[] = {
     0,0,0,0,0,
-    /*5*/0,0,0,50,60,
+    /*5*/0,0,0,50,70,
     /*10*/70,100,100,100,100,
-    /*15*/100,100,100,100,20,
-    /*20*/0,0,0,0 };
+    /*15*/100,100,100,100,50,
+    /*20*/20,0,0,0 };
 
     return br_array[hour];
 }
 void workerfunc()
 {
-    
-
     while (true)
     {
-        datetime curr_time = datetime::now();
-        set_brightness(getbrbyhour(curr_time.hour()));
-        this_thread::sleep_for(chrono::seconds(60));
+        if (isAuto()) 
+        {
+            datetime curr_time = datetime::now();
+            set_brightness(getbrbyhour(curr_time.hour()));
+            this_thread::sleep_for(chrono::seconds(60));
+        }
+
     }
 }
